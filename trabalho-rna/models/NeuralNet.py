@@ -5,7 +5,7 @@ import random
 import math
 
 class NeuralNet:
-  def __init__(self, input_layer_neurons, hidden_layer_neurons, output_layer_neurons, csv_path):
+  def __init__(self, input_layer_neurons, hidden_layer_neurons, output_layer_neurons, csv_path, percentage_to_train):
     self.input_layer_neurons   = input_layer_neurons
     self.hidden_layer_neurons  = hidden_layer_neurons
     self.output_layer_neurons  = output_layer_neurons
@@ -14,6 +14,7 @@ class NeuralNet:
     self.bias_hidden           = [random.uniform(-1.0, 1.0) for _ in range(hidden_layer_neurons)]
     self.bias_output           = [random.uniform(-1.0, 1.0) for _ in range(output_layer_neurons)]
     self.data_input            = load_data_from_csv(csv_path)
+    self.data_to_train       = int(len(self.data_input[0])*(percentage_to_train/100))
 
   def sigmoid(self, x):
     return 1 / (1 + math.exp(-x))
@@ -41,9 +42,7 @@ class NeuralNet:
     
     return hidden_layer_input, output_layer_input
   
-  def backward_propagation(self, input_data, hidden_layer_activation, output_layer_activation, expected_output):
-    # global weights_input_hidden, weights_hidden_output, bias_hidden, bias_output
-    
+  def backward_propagation(self, input_data, hidden_layer_activation, output_layer_activation, expected_output):    
     error_output_layer = [expected_output[k] - output_layer_activation[k] for k in range(self.output_layer_neurons)]
     delta_output_layer = [error_output_layer[k] * self.sigmoid_derivative(output_layer_activation[k]) for k in range(self.output_layer_neurons)]
     
@@ -70,38 +69,33 @@ class NeuralNet:
   # Data 0 => Inputs
   # Data 1 => Labels
   def train(self, epochs):
-    expected_output, label_to_vec = one_hot_encode(self.data_input[1])
+    expected_output, _ = one_hot_encode(self.data_input[1])
 
     for epoch in range(epochs):
-      for data, expected in zip(self.data_input[0], expected_output):
+      for data, expected in zip(self.data_input[0][:self.data_to_train], expected_output):
         hidden_layer_activation, output_layer_activation = self.forward_propagation(data)
         self.backward_propagation(data, hidden_layer_activation, output_layer_activation, expected)
 
       if epoch % 100 == 0:
         total_loss = 0
-        for i in range(len(self.data_input[0])):
+
+        for i in range(len(self.data_input[0][:self.data_to_train])):
           _, output_layer_activation = self.forward_propagation(self.data_input[0][i])
 
           for j in expected_output[i]:
             loss = (expected_output[i][j] - output_layer_activation[j]) ** 2
           total_loss += loss
 
-        average_loss = total_loss / len(self.data_input[0])
-        print(f'Epoch {epoch}, Loss: {average_loss}')
+        average_loss = total_loss / len(self.data_input[0][:self.data_to_train])
+        print(f'Epoch {epoch}, Avg. Loss: {round(average_loss, 5)}, Total Loss: {round(total_loss, 5)}')
 
-    return label_to_vec
+    return
   
-  def predict(self, new_data_input, label_to_vec):
-    _, output_layer_activation = self.forward_propagation(new_data_input)
+  def predict(self):
+    data_to_predict = self.data_input[0][self.data_to_train:]
+    _, label_to_vec = one_hot_encode(self.data_input[1])
 
-    return one_hot_decode([output_layer_activation], label_to_vec)
-
-
-# input_layer_neurons  = 3
-# hidden_layer_neurons = 5
-# output_layer_neurons = 2
-
-# file_path = 'archive/Iris.csv'
-# neural_net = NeuralNet(input_layer_neurons, hidden_layer_neurons, output_layer_neurons, file_path)
-# neural_net.train(10000)
-# print(neural_net)
+    for i in range(len(data_to_predict)):
+      _, output_layer_activation = self.forward_propagation(data_to_predict[i])
+      
+      print(f'Previsão para: {data_to_predict[i]} é {one_hot_decode([output_layer_activation], label_to_vec)[0]}')
