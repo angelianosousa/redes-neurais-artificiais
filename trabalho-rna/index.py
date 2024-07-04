@@ -1,13 +1,33 @@
 from models.NeuralNet import NeuralNet
 
-input_layer_neurons  = 3
-hidden_layer_neurons = 5
-output_layer_neurons = 2
+print(15*'-==-')
+print('By default the algorithm start with the below config:')
+print('Input layer neurons: 3')
+print('Hidden layer neurons: 5')
+print('Input layer neurons: 2')
+print('Function activation: Sigmoid')
+print('Data for training 75% and 25% to prediction')
+change_config = str(input('Set a new config ? (y/n): '))
+print(15*'-==-')
 
 file_path  = 'archive/Iris.csv'
-neural_net = NeuralNet(input_layer_neurons, hidden_layer_neurons, output_layer_neurons, file_path, 75)
-data_to_predict = neural_net.data_input[0][neural_net.data_to_train:]
-# print(neural_net.data_input[0][:neural_net.data_to_train])
-# print(neural_net.data_to_train)
+
+if change_config == 'y':
+  input_layer_neurons   = int(input('Set number of input layer neurons: '))
+  hidden_layer_neurons  = int(input('Set number of hidden layer neurons: '))
+  output_layer_neurons  = int(input('Set number of output layer neurons: '))
+  function_activation   = str(input('Function activation (s - Sigmoid | t - Tanh): '))
+  function_activation   = 'Sigmoid' if function_activation == 's' else 'Tanh'
+  percentage_data_train = int(input('Set a percentage to data train: '))
+  neural_net            = NeuralNet(input_layer_neurons, hidden_layer_neurons, output_layer_neurons, percentage_to_train=percentage_data_train, function_activation=function_activation, csv_path=file_path)
+
+else:
+  neural_net = NeuralNet(percentage_to_train=75, csv_path=file_path)
+
+
 neural_net.train(10000)
 neural_net.predict()
+
+# TOOD
+# Adaptar para aceitar um numero arbitrário de camadas
+# Adicionar termo momento e opção para usar ele ou não
