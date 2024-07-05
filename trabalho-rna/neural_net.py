@@ -1,40 +1,45 @@
-from helpers.use_csv import load_data_from_csv
-from helpers.one_hot_crypt import one_hot_encode, one_hot_decode
+from use_csv import load_data_from_csv
+from one_hot_crypt import one_hot_encode, one_hot_decode
 
 import csv
 import random
 import math
 
+def sigmoid(x):
+  return 1 / (1 + math.exp(-x))
+
+def sigmoid_derivative(x):
+  return x * (1 - x)
+
+def tanh(x):
+  return math.tanh(x)
+
+def tanh_derivative(x):
+  return 1 - math.tanh(x) ** 2
+
 class NeuralNet:
-  def __init__(self, input_layer_neurons=3, hidden_layer_neurons=5, output_layer_neurons=2, percentage_to_train=75, function_activation='Sigmoid', csv_path=None):
+  def __init__(self, input_layer_neurons=4, hidden_layer_neurons=8, output_layer_neurons=3, percentage_to_train=80, function_activation='Sigmoid', csv_path=None):
     # Set number of layers
     self.input_layer_neurons   = input_layer_neurons
     self.hidden_layer_neurons  = hidden_layer_neurons
     self.output_layer_neurons  = output_layer_neurons
+    
     # Set the weights
     self.weights_input_hidden  = [[random.uniform(-1.0, 1.0) for _ in range(hidden_layer_neurons)] for _ in range(input_layer_neurons)]
     self.weights_hidden_output = [[random.uniform(-1.0, 1.0) for _ in range(output_layer_neurons)] for _ in range(hidden_layer_neurons)]
     self.bias_hidden           = [random.uniform(-1.0, 1.0) for _ in range(hidden_layer_neurons)]
     self.bias_output           = [random.uniform(-1.0, 1.0) for _ in range(output_layer_neurons)]
+    
     # Separate the data by use
-    self.data_input            = load_data_from_csv(csv_path)
-    self.data_to_train         = int(len(self.data_input[0])*(percentage_to_train/100))
-    self.labels                = one_hot_encode(self.data_input[1])[1]
+    self.data_from_csv       = load_data_from_csv(csv_path)
+    self.data_input          = self.data_from_csv[0]
+    self.data_output         = self.data_from_csv[1]
+    self.labels              = one_hot_encode(self.data_output)[1]
+    self.percentage_to_train = int(len(self.data_input)*(percentage_to_train / 100))
+    
     # Set the activation function
-    self.activation_function   = self.sigmoid            if function_activation == 'Sigmoid' else self.tanh
-    self.activation_derivative = self.sigmoid_derivative if function_activation == 'Sigmoid' else self.tanh_derivative
-
-  def sigmoid(self, x):
-    return 1 / (1 + math.exp(-x))
-
-  def sigmoid_derivative(self, x):
-    return x * (1 - x)
-
-  def tanh(self, x):
-    return math.tanh(x)
-
-  def tanh_derivative(self, x):
-    return 1 - math.tanh(x) ** 2
+    self.activation_function   = sigmoid            if function_activation == 'Sigmoid' else tanh
+    self.activation_derivative = sigmoid_derivative if function_activation == 'Sigmoid' else tanh_derivative
 
   def forward_propagation(self, input_data):
     hidden_layer_input = []
@@ -83,41 +88,51 @@ class NeuralNet:
   # Data 0 => Inputs
   # Data 1 => Labels
   def train(self, epochs):
-    expected_output, _ = one_hot_encode(self.data_input[1])
+    expected_output, _ = one_hot_encode(self.data_output)
 
     for epoch in range(epochs):
-      for data, expected in zip(self.data_input[0][:self.data_to_train], expected_output):
+      for data, expected in zip(self.data_input[:self.percentage_to_train], expected_output):
         hidden_layer_activation, output_layer_activation = self.forward_propagation(data)
         self.backward_propagation(data, hidden_layer_activation, output_layer_activation, expected)
 
       if epoch % 100 == 0:
         total_loss = 0
 
-        for i in range(len(self.data_input[0][:self.data_to_train])):
-          _, output_layer_activation = self.forward_propagation(self.data_input[0][i])
+        for i in range(len(self.data_input[:self.percentage_to_train])):
+          _, output_layer_activation = self.forward_propagation(self.data_input[i])
 
           for j in expected_output[i]:
             loss = (expected_output[i][j] - output_layer_activation[j]) ** 2
           total_loss += loss
 
-        average_loss = total_loss / len(self.data_input[0][:self.data_to_train])
+        average_loss = total_loss / len(self.data_input[:self.percentage_to_train])
         print(f'Epoch {epoch}, Avg. Loss: {round(average_loss, 5)}, Total Loss: {round(total_loss, 5)}')
   
   def predict(self):
-    data_to_predict  = self.data_input[0][self.data_to_train:]
-    predict_expected = self.data_input[1][self.data_to_train:]
+    data_to_predict  = self.data_input[self.percentage_to_train:]
+    predict_expected = self.data_output[self.percentage_to_train:]
 
-    with open('archive/IrisPredict.csv', 'w', newline='') as file:
+    with open('archive/IrisPredictSigmoid.csv', 'w', newline='') as file:
       fieldnames = ['SepalLengthCm', 'SepalWidthCm', 'PetalLengthCm', 'PetalWidthCm', 'Species', 'PredictExpected']
       writer     = csv.DictWriter(file, fieldnames=fieldnames)
       writer.writeheader()
 
-      counter = 0
-      for data in data_to_predict:
+      for index, data in enumerate(data_to_predict, start=0):
         output_layer_activation = self.forward_propagation(data)[1]
         label_decode            = one_hot_decode([output_layer_activation], self.labels)[0]
 
-        writer.writerow({'SepalLengthCm': data[0], 'SepalWidthCm': data[1], 'PetalLengthCm': data[2], 'PetalWidthCm': data[3], 'Species': label_decode, 'PredictExpected': predict_expected[counter] })
-        counter += 1
+        writer.writerow({'SepalLengthCm': data[0], 'SepalWidthCm': data[1], 'PetalLengthCm': data[2], 'PetalWidthCm': data[3], 'Species': label_decode, 'PredictExpected': predict_expected[index] })
 
     print('Execução encerrada!')
+
+# Exemplo de uso
+input_layer_neurons  = 4
+hidden_layer_neurons = 8
+output_layer_neurons = 3
+percentage_to_train  = 75
+function_activation  = 'Sigmoid'
+csv_path             = 'archive/IrisShuffled.csv'
+
+neural_net = NeuralNet(input_layer_neurons, hidden_layer_neurons, output_layer_neurons, percentage_to_train, function_activation, csv_path)
+neural_net.train(epochs=5000)
+neural_net.predict()
